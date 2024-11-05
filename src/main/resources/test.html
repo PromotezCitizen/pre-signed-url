@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File and Generate Presigned URL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        label {
+            margin: 10px 0;
+            display: block;
+        }
+        input, button {
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        #presigned-url {
+            margin-top: 20px;
+            word-wrap: break-word;
+        }
+        #success-message {
+            margin-top: 20px;
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h1>Upload File and Generate Presigned URL</h1>
+
+<label for="file">Select File:</label>
+<input type="file" id="file" />
+
+<div id="file-info">
+    <p><strong>File Size:</strong> <span id="file-size"></span></p>
+    <p><strong>File Type:</strong> <span id="file-type"></span></p>
+    <p><strong>File Extension:</strong> <span id="file-ext"></span></p>
+</div>
+
+<div id="presigned-url"></div>
+<div id="success-message"></div>
+
+<script>
+    let selectedFile = null;
+    let serverUrl = 'http://localhost:8080/s3/presigned-url';
+
+    document.getElementById('file').addEventListener('change', function(event) {
+        selectedFile = event.target.files[0];
+
+        if (selectedFile) {
+            // Display file size and MIME type
+            const f = selectedFile.name.split(".");
+            document.getElementById('file-size').textContent = selectedFile.size + ' bytes';
+            document.getElementById('file-type').textContent = selectedFile.type;
+            document.getElementById('file-ext').textContent = f[f.length - 1];
+
+            // Generate the presigned URL as soon as the file is selected
+            generatePresignedUrl(selectedFile);
+        }
+    });
+
+    function generatePresignedUrl(file) {
+        const path = "uploads";  // Can be dynamically set based on user input or file type
+        const size = file.size;
+        const mime = file.type;
+        const f = selectedFile.name.split(".");
+        const type = f[f.length-1];
+
+        // Construct the URL to call the backend API
+        const apiUrl = `${serverUrl}?path=${encodeURIComponent(path)}&size=${size}&type=${encodeURIComponent(type)}&mime=${mime}`;
+
+        console.log(size, type, apiUrl);
+        // Call the API to generate the presigned URL
+        fetch(apiUrl)
+            .then(response => response.text())
+            .then(presignedUrl => {
+                // Display the presigned URL
+                const resultDiv = document.getElementById('presigned-url');
+                resultDiv.innerHTML = `
+                    <h3>Presigned URL</h3>
+                    <p><strong>Generated Presigned URL:</strong></p>
+                    <textarea rows="4" cols="50" readonly>${presignedUrl}</textarea>
+                    <br />
+                    <button onclick="uploadFileToS3('${presignedUrl}')">Upload File to S3</button>
+                `;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to generate presigned URL.');
+            });
+    }
+
+    // Function to upload file using the presigned URL with PUT method
+    function uploadFileToS3(presignedUrl) {
+        if (!selectedFile) {
+            alert('Please select a file first.');
+            return;
+        }
+
+        const mime = selectedFile.type;
+
+        // Prepare the request
+        fetch(presignedUrl, {
+            method: 'PUT',  // Use PUT method for uploading file
+            headers: {
+                'Content-Type': mime === "" ? "application/octet-stream" : mime,  // Set the correct MIME type
+            },
+            body: selectedFile  // Send the selected file as the body of the PUT request
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('File uploaded successfully!');
+                    noticeUploadSuccessfullyToServer(presignedUrl);
+                } else {
+                    alert('Failed to upload file.');
+                }
+            })
+            .catch(error => {
+                console.error('Upload Error:', error);
+                alert('Error uploading file.');
+            });
+    }
+
+    function noticeUploadSuccessfullyToServer(presignedUrl) {
+        fetch(`${serverUrl}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'Application/json'
+            },
+            body: JSON.stringify({
+                "url": presignedUrl
+            })
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('Notify file uploaded successful!');
+                    // After successful upload, clear the form and show success message
+                    clearForm();
+                } else {
+                    alert('Failed to notify file uploaded.');
+                }
+            })
+            .catch(error => {
+                console.error('Notifying Error:', error);
+                alert('Error notifying file uploaded.');
+            });
+    }
+
+    // Function to clear the form and reset UI
+    function clearForm() {
+        // Clear the file input and reset file info
+        document.getElementById('file').value = '';
+        document.getElementById('file-size').textContent = '';
+        document.getElementById('file-type').textContent = '';
+        document.getElementById('file-ext').textContent = '';
+
+        // Clear the presigned URL section
+        document.getElementById('presigned-url').innerHTML = '';
+
+        // Display success message
+        const successMessageDiv = document.getElementById('success-message');
+        successMessageDiv.textContent = 'File uploaded and processed successfully!';
+
+        // Optionally, you can hide the success message after a few seconds
+        setTimeout(() => {
+            successMessageDiv.textContent = '';
+        }, 5000);  // Clear the success message after 5 seconds
+    }
+</script>
+</body>
+</html>

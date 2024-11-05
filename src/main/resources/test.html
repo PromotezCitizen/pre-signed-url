@@ -73,7 +73,6 @@
         // Construct the URL to call the backend API
         const apiUrl = `${serverUrl}?path=${encodeURIComponent(path)}&size=${size}&type=${encodeURIComponent(type)}&mime=${mime}`;
 
-        console.log(size, type, apiUrl);
         // Call the API to generate the presigned URL
         fetch(apiUrl)
             .then(response => response.text())

@@ -26,10 +26,10 @@ spring:
 aws:
   s3:
     bucket:
-      name: elice-project2-team4
+      name: {{ bucket name }}
       stack.auto: false
-      region: ap-northeast-2
-      url: https://elice-project2-team4.s3.ap-northeast-2.amazonaws.com
+      region: {{ bucket region }}
+      url: {{ bucket url - https://~~.amazonaws.com}}
       credentials:
         accessKey: {{ iam access key }}
         secretAccessKey: {{ iam secret access key }}
